@@ -56,7 +56,7 @@ public class EventSystemDebugger : EditorWindow, IListener
     public struct EventFireRecord
     {
         public System.DateTime timestamp;
-        public Event @event;
+        [SerializeReference] public Event @event;
         public List<EventCallback> listeners;
 
         public static bool operator==(EventFireRecord a, EventFireRecord b)
@@ -214,15 +214,21 @@ public class EventSystemDebugger : EditorWindow, IListener
         if (serializedRepr != null) serializedRepr.Update();
         else serializedRepr = new SerializedObject(this);
         
-        if(eventDataInspector != null) eventDataBox.Remove(eventDataInspector);
-        eventDataInspector = null;
+        //if(eventDataInspector != null) eventDataBox.Remove(eventDataInspector);
+        //eventDataInspector = null;
 
         if (selectedLogEntry != null)
         {
             int selectedIndex = history.FindIndex(r => r == which.GetDisplayedRecord());
-            eventDataInspector = new PropertyField(serializedRepr.FindProperty("history").GetArrayElementAtIndex(selectedIndex).FindPropertyRelative("event"));
+            //eventDataInspector = new PropertyField(serializedRepr.FindProperty("history").GetArrayElementAtIndex(selectedIndex).FindPropertyRelative("event"));
+            SerializedProperty prop = serializedRepr.FindProperty("history").GetArrayElementAtIndex(selectedIndex).FindPropertyRelative("event");
+            eventDataInspector.BindProperty(prop);
+
             eventDataInspector.style.flexGrow = 1;
             eventDataBox.Add(eventDataInspector);
+
+            Foldout foldout = eventDataInspector.ElementAt(0) as Foldout;
+            if (foldout != null) foldout.value = true;
         }
 
         //serializedRepr.ApplyModifiedProperties();
@@ -242,7 +248,7 @@ public class EventSystemDebugger : EditorWindow, IListener
 
         eventDataBox = root;
         //root.Add(eventInspectorElement = new PropertyField());
-        //root.Add(new PropertyField());
+        root.Add(eventDataInspector = new PropertyField());
 
         return root;
     }
