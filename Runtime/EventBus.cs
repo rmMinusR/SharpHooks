@@ -6,12 +6,12 @@ using System.Linq;
 namespace Events
 {
 
-    internal sealed class EventBus : MonoBehaviour
+    internal sealed class EventBus
     {
         #region Singleton
 
         private static EventBus __instance = null;
-        internal static EventBus Instance => __instance != null ? __instance : (__instance = new GameObject("EventBus").AddComponent<EventBus>()); //NOTE: This causes bad cleanup message.
+        internal static EventBus Instance => __instance != null ? __instance : (__instance = new EventBus()); //NOTE: Not guaranteed valid across scene changes
 
         #endregion
 
@@ -22,15 +22,15 @@ namespace Events
         internal void AddCallbackStatic(IListener listener, System.Type eventType, System.Reflection.MethodInfo target, Priority priority)
         {
             SimplePriorityQueue<EventCallback, Priority> pq;
-            if(!buses.TryGetValue(eventType, out pq)) buses.Add(eventType, new SimplePriorityQueue<EventCallback, Priority>());
+            if(!buses.TryGetValue(eventType, out pq)) buses.Add(eventType, pq = new SimplePriorityQueue<EventCallback, Priority>());
 
             if(!pq.Any(h => h.owner == listener && h is StaticCallback s && s.target == target)) pq.Enqueue(new StaticCallback(eventType, listener, target), priority);
         }
 
-        internal EventCallback AddCallbackDynamic<TEvent>(IListener listener, EventAPI.HandlerFunction<TEvent> target, Priority priority) where TEvent : PubSubEvent
+        internal EventCallback AddCallbackDynamic<TEvent>(IListener listener, EventAPI.HandlerFunction<TEvent> target, Priority priority) where TEvent : Event
         {
             SimplePriorityQueue<EventCallback, Priority> pq;
-            if(!buses.TryGetValue(typeof(TEvent), out pq)) buses.Add(typeof(TEvent), new SimplePriorityQueue<EventCallback, Priority>());
+            if(!buses.TryGetValue(typeof(TEvent), out pq)) buses.Add(typeof(TEvent), pq = new SimplePriorityQueue<EventCallback, Priority>());
 
             if (!pq.Any(h => h.owner == listener && h is DynamicCallback<TEvent> d && d.target == target))
             {
@@ -59,34 +59,10 @@ namespace Events
         }
 
         #endregion
-    
-        private void Update()
-        {
-            DispatchBufferedEvents();
-        }
-
-        #region Buffering system
-
-        private Queue<PubSubEvent> eventBuffer = new Queue<PubSubEvent>();
-
-        private void DispatchBufferedEvents()
-        {
-            while(eventBuffer.Count > 0)
-            {
-                DispatchImmediately(eventBuffer.Dequeue());
-            }
-        }
-
-        #endregion
-
+        
         #region Dispatching
 
-        internal void DispatchAsync(PubSubEvent @event) //TODO add handle
-        {
-            if (!@event.HasBeenDispatched && !eventBuffer.Contains(@event)) eventBuffer.Enqueue(@event);
-        }
-
-        internal T DispatchImmediately<T>(T @event) where T : PubSubEvent
+        internal T DispatchImmediately<T>(T @event) where T : Event
         {
             if(@event.HasBeenDispatched) throw new System.InvalidOperationException("Event has already been dispatched!");
 

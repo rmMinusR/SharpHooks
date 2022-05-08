@@ -41,7 +41,7 @@ namespace Events
             return records;
         }
 
-        internal static IEnumerable<Record> GetHandlersOrScan(IListener listener, PubSubEvent @event)
+        internal static IEnumerable<Record> GetHandlersOrScan(IListener listener, Event @event)
         {
             HashSet<Record> records = GetHandlersOrScan(listener);
 
@@ -72,7 +72,7 @@ namespace Events
 
                     if (i.ReturnType == typeof(void)
                      && i.GetParameters().Length == 1
-                     && typeof(PubSubEvent).IsAssignableFrom(i.GetParameters()[0].ParameterType))
+                     && typeof(Event).IsAssignableFrom(i.GetParameters()[0].ParameterType))
                     {
                         records.Add(new Record
                         {

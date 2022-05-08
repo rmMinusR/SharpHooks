@@ -1,5 +1,4 @@
-﻿using Events;
-using System;
+﻿using System;
 using System.Reflection;
 
 namespace Events
@@ -8,13 +7,14 @@ namespace Events
     {
         public readonly Type eventType;
         public readonly IListener owner;
+
         internal EventCallback(Type eventType, IListener owner)
         {
             this.eventType = eventType;
             this.owner = owner;
         }
 
-        internal abstract void Dispatch(PubSubEvent e);
+        internal abstract void Dispatch(Event e);
     }
 
     internal sealed class StaticCallback : EventCallback
@@ -26,10 +26,10 @@ namespace Events
 
         public readonly MethodInfo target;
 
-        internal override void Dispatch(PubSubEvent e) => target.Invoke(owner, new object[] { e });
+        internal override void Dispatch(Event e) => target.Invoke(owner, new object[] { e });
     }
 
-    internal sealed class DynamicCallback<TEvent> : EventCallback where TEvent : PubSubEvent
+    internal sealed class DynamicCallback<TEvent> : EventCallback where TEvent : Event
     {
         internal DynamicCallback(IListener owner, EventAPI.HandlerFunction<TEvent> target) : base(typeof(TEvent), owner)
         {
@@ -38,7 +38,7 @@ namespace Events
 
         public readonly EventAPI.HandlerFunction<TEvent> target;
 
-        internal override void Dispatch(PubSubEvent e) => target((TEvent)e);
+        internal override void Dispatch(Event e) => target((TEvent)e);
     }
 
 }

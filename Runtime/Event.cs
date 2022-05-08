@@ -25,16 +25,16 @@
     /// For events with read only data, they can still be interacted with by being cancelled.
     /// Note that an event will reach all listeners, whether it was cancelled or not.
     /// </summary>
-    public abstract class PubSubEvent
+    public abstract class Event
     {
         public bool isCancelled;
 
-        protected PubSubEvent()
+        public bool HasBeenDispatched { get; internal set; }
+
+        protected Event()
         {
             HasBeenDispatched = false;
             isCancelled = false;
         }
-
-        public bool HasBeenDispatched { get; internal set; }
     }
 }

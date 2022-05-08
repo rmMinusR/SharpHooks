@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Events
+﻿namespace Events
 {
     public static class EventAPI
     {
@@ -23,7 +21,7 @@ namespace Events
         /// Scripts that register using this are responsible for either using
         /// UnregisterAllHandlers or using the returned callback handle to unregister only that handler.
         /// </summary>
-        public static EventCallback RegisterDynamicHandler<TEvent>(IListener listener, HandlerFunction<TEvent> target, Priority priority) where TEvent : PubSubEvent
+        public static EventCallback RegisterDynamicHandler<TEvent>(IListener listener, HandlerFunction<TEvent> target, Priority priority) where TEvent : Event
         {
             return EventBus.Instance.AddCallbackDynamic<TEvent>(listener, target, priority);
         }
@@ -61,7 +59,7 @@ namespace Events
         /// <summary>
         /// Sends an event to all registered listeners.
         /// </summary>
-        public static void Dispatch(PubSubEvent @event)
+        public static void Dispatch(Event @event)
         {
             EventBus.Instance.DispatchImmediately(@event);
         }
