@@ -44,10 +44,12 @@ namespace EventSystem.Editor
             splitViewRightHalf.Add(BuildListenersBox());
             splitViewRightHalf.Add(BuildStacktraceBox());
 
+            //Composite
             splitViewRoot.Add(splitViewLeftHalf);
             splitViewRoot.Add(splitViewRightHalf);
             rootVisualElement.Add(splitViewRoot);
 
+            //Setup instance
             ActiveInstance = this;
             DoEventRegistration();
         }
@@ -57,6 +59,8 @@ namespace EventSystem.Editor
             EventAPI.UnregisterAllHandlers(this);
             ActiveInstance = null;
         }
+
+        #region Event record I/O
 
         [Serializable]
         public struct EventFireRecord
@@ -93,8 +97,6 @@ namespace EventSystem.Editor
             }
         }
 
-        #region Log data structures
-
         [SerializeField] private List<EventFireRecord> history = new List<EventFireRecord>();
 
         private void ClearHistory()
@@ -127,7 +129,7 @@ namespace EventSystem.Editor
 
         #endregion
 
-        #region Log box
+        #region Log panel UI
 
         private ScrollView logBox;
         private Label logHeader;
@@ -224,8 +226,6 @@ namespace EventSystem.Editor
             logHeader.text = "Log - " + history.Count + " entries";
         }
 
-        #endregion
-
         private LogEntryDisplay selectedLogEntry = null;
         private void SelectLogEntry(LogEntryDisplay which)
         {
@@ -256,7 +256,9 @@ namespace EventSystem.Editor
             stacktraceLabel.text = selectedLogEntry != null ? selectedLogEntry.record.stacktrace : "";
         }
 
-        #region Event data
+        #endregion
+
+        #region Event data panel UI
 
         private VisualElement eventDataBox;
 
@@ -307,7 +309,7 @@ namespace EventSystem.Editor
             return root;
         }
 
-        #region Utils
+        #region Misc helper UI functions
 
         private Label BuildHeader(string text)
         {
