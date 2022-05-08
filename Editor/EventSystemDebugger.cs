@@ -30,17 +30,23 @@ namespace EventSystem.Editor
 
             //Build VisualElement tree
 
-            TwoPaneSplitView splitView = new TwoPaneSplitView(0, 250, TwoPaneSplitViewOrientation.Horizontal);
+            TwoPaneSplitView splitViewRoot = new TwoPaneSplitView(1, 250, TwoPaneSplitViewOrientation.Horizontal);
 
-            TwoPaneSplitView splitView2 = new TwoPaneSplitView(1, 400, TwoPaneSplitViewOrientation.Horizontal);
+            TwoPaneSplitView splitViewLeftHalf = new TwoPaneSplitView(0, 250, TwoPaneSplitViewOrientation.Horizontal);
 
-            splitView.Add(BuildLogBox(out logBox));
-            {
-                splitView2.Add(BuildEventDataBox(out eventDataBox));
-                splitView2.Add(BuildListenersBox());
-            }
-            splitView.Add(splitView2);
-            rootVisualElement.Add(splitView);
+            TwoPaneSplitView splitViewRightHalf = new TwoPaneSplitView(1, 150, TwoPaneSplitViewOrientation.Vertical);
+
+            //Horizontally
+            splitViewLeftHalf.Add(BuildLogBox(out logBox));
+            splitViewLeftHalf.Add(BuildEventDataBox(out eventDataBox));
+            
+            //Vertically
+            splitViewRightHalf.Add(BuildListenersBox());
+            splitViewRightHalf.Add(BuildStacktraceBox());
+
+            splitViewRoot.Add(splitViewLeftHalf);
+            splitViewRoot.Add(splitViewRightHalf);
+            rootVisualElement.Add(splitViewRoot);
 
             ActiveInstance = this;
             DoEventRegistration();
@@ -55,9 +61,10 @@ namespace EventSystem.Editor
         [Serializable]
         public struct EventFireRecord
         {
-            public System.DateTime timestamp;
+            public DateTime timestamp;
             [SerializeReference] public Event @event;
             public List<EventCallback> listeners;
+            public string stacktrace;
 
             public static bool operator==(EventFireRecord a, EventFireRecord b)
             {
@@ -76,6 +83,14 @@ namespace EventSystem.Editor
             {
                 return base.GetHashCode() ^ timestamp.GetHashCode() ^ @event.GetHashCode() ^ listeners.GetHashCode();
             }
+
+            public class CompareByTime : IComparer<EventFireRecord> //Good for binary searching for a specific known event
+            {
+                public int Compare(EventFireRecord x, EventFireRecord y)
+                {
+                    return x.timestamp.CompareTo(y.timestamp);
+                }
+            }
         }
 
         #region Log data structures
@@ -86,11 +101,8 @@ namespace EventSystem.Editor
         {
             history.Clear();
             selectedLogEntry = null;
-            if (eventDataInspector != null)
-            {
-                eventDataBox.Remove(eventDataInspector);
-                eventDataInspector = null;
-            }
+            if (eventDataInspector != null) eventDataInspector.visible = false;
+            if (stacktraceLabel != null) stacktraceLabel.text = "";
         }
 
         protected internal virtual void DoEventRegistration()
@@ -102,12 +114,15 @@ namespace EventSystem.Editor
         [EventHandler(Priority.Final)]
         private void RecordEvent(Event e)
         {
-            history.Add(new EventFireRecord
+            EventFireRecord record = new EventFireRecord
             {
                 @event = e,
                 timestamp = DateTime.Now,
-                listeners = new List<EventCallback>() //TODO fill!
-            });
+                //listeners = new List<EventCallback>(), //TODO fill!
+                stacktrace = StackTraceUtility.ExtractStackTrace()
+            };
+
+            history.Add(record);
         }
 
         #endregion
@@ -115,10 +130,12 @@ namespace EventSystem.Editor
         #region Log box
 
         private ScrollView logBox;
+        private Label logHeader;
         private VisualElement BuildLogBox(out ScrollView logBox)
         {
             Box root = new Box();
-            root.Add(BuildHeader("Log"));
+            root.style.minWidth = 150;
+            root.Add(logHeader = BuildHeader("Log"));
 
             root.Add(BuildDivider());
 
@@ -136,7 +153,7 @@ namespace EventSystem.Editor
         private sealed class LogEntryDisplay : VisualElement, IEventHandler
         {
             private EventSystemDebugger owner;
-            private EventFireRecord record;
+            internal EventFireRecord record;
             private Label timestampLabel;
             private Label eventTypeLabel;
 
@@ -203,6 +220,8 @@ namespace EventSystem.Editor
                 i.SetDisplayedRecord(history[index]);
                 ++index;
             }
+
+            logHeader.text = "Log - " + history.Count + " entries";
         }
 
         #endregion
@@ -217,23 +236,24 @@ namespace EventSystem.Editor
             //Update event data panel
             if (serializedRepr != null) serializedRepr.Update();
             else serializedRepr = new SerializedObject(this);
-        
-            if(eventDataInspector == null) eventDataBox.Add(eventDataInspector = new PropertyField());
+
+            eventDataInspector.visible = selectedLogEntry!=null;
 
             if (selectedLogEntry != null)
             {
-                int selectedIndex = history.FindIndex(r => r == which.GetDisplayedRecord());
+                //FIXME this is a roundabout solution with MAJOR performance cost when working with large logs
+                int selectedIndex = history.BinarySearch(which.GetDisplayedRecord(), new EventFireRecord.CompareByTime());
                 SerializedProperty prop = serializedRepr.FindProperty("history").GetArrayElementAtIndex(selectedIndex).FindPropertyRelative("event");
                 eventDataInspector.BindProperty(prop);
 
                 eventDataInspector.style.flexGrow = 1;
-                eventDataBox.Add(eventDataInspector);
 
                 Foldout foldout = eventDataInspector.ElementAt(0) as Foldout;
                 if (foldout != null) foldout.value = true;
             }
 
-            //serializedRepr.ApplyModifiedProperties();
+            //Update stacktrace label
+            stacktraceLabel.text = selectedLogEntry != null ? selectedLogEntry.record.stacktrace : "";
         }
 
         #region Event data
@@ -242,14 +262,18 @@ namespace EventSystem.Editor
 
         private SerializedObject serializedRepr;
         private PropertyField eventDataInspector;
+
+        private Label stacktraceLabel;
         private VisualElement BuildEventDataBox(out VisualElement eventDataBox)
         {
             Box root = new Box();
+            root.style.minWidth = 150;
             root.Add(BuildHeader("Data"));
             root.Add(BuildDivider());
 
             eventDataBox = root;
             root.Add(eventDataInspector = new PropertyField());
+            eventDataInspector.style.flexGrow = 1;
 
             return root;
         }
@@ -259,6 +283,7 @@ namespace EventSystem.Editor
         private VisualElement BuildListenersBox()
         {
             Box root = new Box();
+            root.style.minHeight = 100;
             root.Add(BuildHeader("Listeners"));
             root.Add(BuildDivider());
 
@@ -267,6 +292,20 @@ namespace EventSystem.Editor
             return root;
         }
 
+        private VisualElement BuildStacktraceBox()
+        {
+            Box root = new Box();
+            root.style.minHeight = 100;
+            root.Add(BuildHeader("Stacktrace"));
+            root.Add(BuildDivider());
+
+            ScrollView stacktraceScrollview = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
+            stacktraceScrollview.style.flexGrow = 1;
+            stacktraceScrollview.Add(stacktraceLabel = new Label());
+            root.Add(stacktraceScrollview);
+
+            return root;
+        }
 
         #region Utils
 
