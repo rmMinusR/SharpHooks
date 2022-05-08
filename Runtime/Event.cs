@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace Events
+namespace EventSystem
 {
     /// <summary>
     /// Highest priority will execute first and Lowest will execute last.
@@ -32,11 +32,11 @@ namespace Events
     public abstract class Event
     {
         public bool isCancelled;
-        [SerializeField] private bool __hasBeenDispatched;
+        [SerializeField] private bool _hasBeenDispatched;
 
         public bool HasBeenDispatched {
-            get => __hasBeenDispatched;
-            internal set => __hasBeenDispatched = value;
+            get => _hasBeenDispatched;
+            internal set => _hasBeenDispatched = value;
         }
 
         protected Event()

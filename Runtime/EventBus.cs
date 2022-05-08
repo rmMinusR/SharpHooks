@@ -3,7 +3,7 @@ using UnityEngine;
 using Priority_Queue;
 using System.Linq;
 
-namespace Events
+namespace EventSystem
 {
 
     internal sealed class EventBus

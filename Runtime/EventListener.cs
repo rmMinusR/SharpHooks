@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Events
+namespace EventSystem
 {
     /// <summary>
     /// Empty marker for objects that interact with Queries and Messages

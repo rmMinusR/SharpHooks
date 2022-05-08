@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 
-namespace Events
+namespace EventSystem
 {
     public abstract class EventCallback
     {

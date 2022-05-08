@@ -1,4 +1,4 @@
-﻿namespace Events
+﻿namespace EventSystem
 {
     public static class EventAPI
     {
