@@ -5,6 +5,8 @@ using System.Collections.Generic;
 
 using Events;
 using Event = Events.Event;
+using UnityEditor.UIElements;
+using System;
 
 public class EventSystemDebugger : EditorWindow, IListener
 {
@@ -24,40 +26,19 @@ public class EventSystemDebugger : EditorWindow, IListener
 
     private void OnEnable()
     {
+        ClearHistory();
+
         //Build VisualElement tree
 
         TwoPaneSplitView splitView = new TwoPaneSplitView(0, 250, TwoPaneSplitViewOrientation.Horizontal);
 
         TwoPaneSplitView splitView2 = new TwoPaneSplitView(1, 400, TwoPaneSplitViewOrientation.Horizontal);
 
+        splitView.Add(BuildLogBox(out logBox));
         {
-            Box logPanelMain = new Box();
-            logPanelMain.Add(BuildHeader("Log"));
-            
-            BuildLogBox(logPanelMain);
-            splitView.Add(logPanelMain);
-
-            Button clearButton = new Button(ClearHistory);
-            clearButton.Add(new Label("Clear"));
-            logPanelMain.Add(clearButton);
+            splitView2.Add(BuildEventDataBox(out eventDataBox));
+            splitView2.Add(BuildListenersBox());
         }
-
-        {
-            Box eventDataPanelMain = new Box();
-            Label detailsTitle = BuildHeader("Data");
-            eventDataPanelMain.Add(detailsTitle);
-            BuildEventDataBox(eventDataPanelMain);
-            splitView2.Add(eventDataPanelMain);
-        }
-
-        {
-            Box listenersPanelMain = new Box();
-            Label listenersTitle = BuildHeader("Listeners");
-            listenersPanelMain.Add(listenersTitle);
-            BuildListenersBox(listenersPanelMain);
-            splitView2.Add(listenersPanelMain);
-        }
-
         splitView.Add(splitView2);
         rootVisualElement.Add(splitView);
 
@@ -71,16 +52,35 @@ public class EventSystemDebugger : EditorWindow, IListener
         ActiveInstance = null;
     }
 
-    #region Log data structures
-
+    [Serializable]
     public struct EventFireRecord
     {
         public System.DateTime timestamp;
         public Event @event;
         public List<EventCallback> listeners;
+
+        public static bool operator==(EventFireRecord a, EventFireRecord b)
+        {
+            return a.@event == b.@event
+                && a.timestamp == b.timestamp;
+        }
+
+        public static bool operator !=(EventFireRecord a, EventFireRecord b) => !(a == b);
+
+        public override bool Equals(object obj)
+        {
+            return obj is EventFireRecord && this == (EventFireRecord)obj;
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode() ^ timestamp.GetHashCode() ^ @event.GetHashCode() ^ listeners.GetHashCode();
+        }
     }
 
-    private List<EventFireRecord> history = new List<EventFireRecord>();
+    #region Log data structures
+
+    [SerializeField] private List<EventFireRecord> history = new List<EventFireRecord>();
 
     private void ClearHistory()
     {
@@ -94,13 +94,13 @@ public class EventSystemDebugger : EditorWindow, IListener
         EventAPI.RegisterStaticHandlers(this);
     }
 
-    [EventHandler(Priority.Highest)]
+    [EventHandler(Priority.Final)]
     private void RecordEvent(Event e)
     {
         history.Add(new EventFireRecord
         {
             @event = e,
-            timestamp = System.DateTime.Now,
+            timestamp = DateTime.Now,
             listeners = new List<EventCallback>() //TODO fill!
         });
 
@@ -111,13 +111,22 @@ public class EventSystemDebugger : EditorWindow, IListener
     #region Log box
 
     private ScrollView logBox;
-    private void BuildLogBox(VisualElement root)
+    private VisualElement BuildLogBox(out ScrollView logBox)
     {
+        Box root = new Box();
+        root.Add(BuildHeader("Log"));
+
         root.Add(BuildDivider());
 
         logBox = new ScrollView(ScrollViewMode.Vertical);
         logBox.style.flexGrow = 9999;
         root.Add(logBox);
+
+        Button clearButton = new Button(ClearHistory);
+        clearButton.Add(new Label("Clear"));
+        root.Add(clearButton);
+
+        return root;
     }
 
     private sealed class LogEntryDisplay : VisualElement, IEventHandler
@@ -156,13 +165,15 @@ public class EventSystemDebugger : EditorWindow, IListener
 
         internal void SetDisplayedRecord(EventFireRecord record)
         {
-            if(this.record.@event != record.@event)
+            if(this.record != record)
             {
                 this.record = record;
                 UpdateTimestampLabel();
                 UpdateEventTypeLabel();
             }
         }
+
+        internal EventFireRecord GetDisplayedRecord() => record;
 
         private void UpdateTimestampLabel()
         {
@@ -173,13 +184,6 @@ public class EventSystemDebugger : EditorWindow, IListener
         {
             eventTypeLabel.text = record.@event?.GetType()?.Name ?? "null";
         }
-    }
-
-    private LogEntryDisplay selectedLogEntry = null;
-    private void SelectLogEntry(LogEntryDisplay which)
-    {
-        foreach (LogEntryDisplay i in logBox.Children()) i.SetSelected(i == which);
-        selectedLogEntry = which;
     }
 
     private void Update()
@@ -199,18 +203,61 @@ public class EventSystemDebugger : EditorWindow, IListener
 
     #endregion
 
-    private void BuildEventDataBox(VisualElement root)
+    private LogEntryDisplay selectedLogEntry = null;
+    private void SelectLogEntry(LogEntryDisplay which)
     {
-        root.Add(BuildDivider());
+        //Update selection visual state
+        selectedLogEntry = which;
+        foreach (LogEntryDisplay i in logBox.Children()) i.SetSelected(i == selectedLogEntry);
 
+        //Update event data panel
+        if (serializedRepr != null) serializedRepr.Update();
+        else serializedRepr = new SerializedObject(this);
         
+        if(eventDataInspector != null) eventDataBox.Remove(eventDataInspector);
+        eventDataInspector = null;
+
+        if (selectedLogEntry != null)
+        {
+            int selectedIndex = history.FindIndex(r => r == which.GetDisplayedRecord());
+            eventDataInspector = new PropertyField(serializedRepr.FindProperty("history").GetArrayElementAtIndex(selectedIndex).FindPropertyRelative("event"));
+            eventDataInspector.style.flexGrow = 1;
+            eventDataBox.Add(eventDataInspector);
+        }
+
+        //serializedRepr.ApplyModifiedProperties();
     }
 
-    private void BuildListenersBox(VisualElement root)
+    #region Event data
+
+    private VisualElement eventDataBox;
+
+    private SerializedObject serializedRepr;
+    private PropertyField eventDataInspector;
+    private VisualElement BuildEventDataBox(out VisualElement eventDataBox)
     {
+        Box root = new Box();
+        root.Add(BuildHeader("Data"));
         root.Add(BuildDivider());
 
-        
+        eventDataBox = root;
+        //root.Add(eventInspectorElement = new PropertyField());
+        //root.Add(new PropertyField());
+
+        return root;
+    }
+
+    #endregion
+
+    private VisualElement BuildListenersBox()
+    {
+        Box root = new Box();
+        root.Add(BuildHeader("Listeners"));
+        root.Add(BuildDivider());
+
+        //TODO
+
+        return root;
     }
 
 
