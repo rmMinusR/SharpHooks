@@ -17,15 +17,19 @@ public class InteractEvent : Event
 	public Interactable interactedObject;
 }
 
-//Step 2/3 - LightSwitch.cs
-[EventHandler]
-void HandleLightsToggle(InteractEvent e) //This function can be named anything
+//Step 2
+public class LightSwitch : ScopedListener
 {
-	if(e.interactedObject == this) connectedLight.enabled = !connectedLight.enabled;
+	//Step 3
+	[EventHandler]
+	void HandleLightsToggle(InteractEvent e) //This function can be named anything
+	{
+		if(e.interactedObject == this) connectedLight.enabled = !connectedLight.enabled;
+	}
 }
 
-//Step 4 - PlayerController.cs
-EventAPI.Dispatch(new InteractEvent { player = this, interactedObject = objectUnderCursor });
+//Step 4 - Player.cs
+EventBus.Main.Dispatch(new InteractEvent { player = this, interactedObject = objectUnderCursor });
 ```
 
 If your MonoBehaviour needs to inherit from something else, instead implement the `IListener` interface and manually manage using `EventAPI.RegisterStaticHandlers` / `EventAPI.UnregisterAllHandlers`. Dynamically registering and unregistering specific handlers is also allowed.
