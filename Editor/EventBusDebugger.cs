@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
 using System;
+using System.Reflection;
 
 namespace rmMinusR.EventBus.Editor
 {
@@ -27,8 +28,6 @@ namespace rmMinusR.EventBus.Editor
 
         private void OnEnable()
         {
-            ClearHistory();
-
             //Build VisualElement tree
 
             TwoPaneSplitView splitViewRoot = new TwoPaneSplitView(1, 250, TwoPaneSplitViewOrientation.Horizontal);
@@ -83,6 +82,8 @@ namespace rmMinusR.EventBus.Editor
                 Debug.Log("Registering static events for " + this + " on bus '" + listenedBus.Name + "'");
                 listenedBus.RegisterStaticHandlers(this);
             }
+
+            ClearHistory();
         }
 
         #region Event record I/O
@@ -162,9 +163,30 @@ namespace rmMinusR.EventBus.Editor
             logBox.style.flexGrow = 9999;
             root.Add(logBox);
 
+            Box footer = new Box();
+            footer.style.maxHeight = footer.style.minHeight = 22;
+            footer.style.flexDirection = FlexDirection.Row;
+            root.Add(footer);
+
+            PopupField<EventBus> busSelector = new PopupField<EventBus>(EventBus.AllInstances, EventBus.Main, bus => bus.Name, bus => bus.Name);
+            busSelector.style.flexGrow = 1;
+            footer.Add(busSelector);
+            FieldInfo fi = busSelector.GetType().GetField("m_Choices", BindingFlags.NonPublic | BindingFlags.Instance);
+            busSelector.RegisterCallback<PointerEnterEvent>(e => fi.SetValue(busSelector, EventBus.AllInstances));
+            busSelector.RegisterValueChangedCallback(e => ListenTo(e.newValue));
+
             Button clearButton = new Button(ClearHistory);
+            clearButton.style.flexGrow = 1;
             clearButton.Add(new Label("Clear"));
-            root.Add(clearButton);
+            footer.Add(clearButton);
+
+            UnityEngine.UIElements.PopupWindow test = new UnityEngine.UIElements.PopupWindow();
+            //test.AddManipulator()
+            //busSelectorMenu = new DropdownMenu();
+            /*busSelectorButton.AddManipulator(new (e => busSelectorMenu.DoDisplayEditorMenu));
+            busSelectorButton.clicked += () => {
+                busSelectorMenu.
+            };*/
 
             return root;
         }

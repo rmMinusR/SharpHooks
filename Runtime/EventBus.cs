@@ -15,10 +15,13 @@ namespace rmMinusR.EventBus
 
         //For EventBusDebugger
         private static List<WeakReference<EventBus>> __AllInstances = new List<WeakReference<EventBus>>();
-        public static IReadOnlyList<EventBus> AllInstances
+        public static List<EventBus> AllInstances
         {
             get
             {
+                //Ensure main is valid
+                _ = Main;
+
                 //Remove GC'ed buses
                 __AllInstances.RemoveAll(i => !i.TryGetTarget(out _));
 
@@ -31,11 +34,13 @@ namespace rmMinusR.EventBus
         //For debugging
         public string Name { get => __name; private set => __name = value; }
         private string __name;
+        public override string ToString() => "EventBus '" + Name + "'";
 
         public EventBus(string name)
         {
             Name = name;
             __AllInstances.Add(new WeakReference<EventBus>(this));
+            Debug.Log("Created new EventBus '"+Name+"'");
         }
 
         ~EventBus()
