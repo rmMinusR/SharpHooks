@@ -20,6 +20,8 @@ public class InteractEvent : Event
 //Step 2
 public class LightSwitch : ScopedListener
 {
+	public Light connectedLight;
+	
 	//Step 3
 	[EventHandler]
 	void HandleLightsToggle(InteractEvent e) //This function can be named anything

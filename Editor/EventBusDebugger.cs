@@ -18,6 +18,7 @@ namespace rmMinusR.EventBus.Editor
         {
             EventBusDebugger window = GetWindow<EventBusDebugger>();
             window.Show();
+            window.position = new Rect(window.position.position, new Vector2(600, 300));
         }
 
         static EventBusDebugger ActiveInstance;
@@ -64,13 +65,15 @@ namespace rmMinusR.EventBus.Editor
             ActiveInstance = null;
         }
 
+        public string GetDebugName() => "EventBus Debugger ("+listenedBus+")";
+
         private EventBus listenedBus = null;
         public void ListenTo(EventBus which)
         {
             //Stop listening
             if (listenedBus != null)
             {
-                Debug.Log("Unregistering static events for " + this + " on bus '"+listenedBus.Name+"'");
+                Debug.Log("Unregistering static events for EventBusDebugger on bus '"+listenedBus.Name+"'");
                 listenedBus.UnregisterAllHandlers(this);
             }
 
@@ -79,11 +82,12 @@ namespace rmMinusR.EventBus.Editor
             //Start listening
             if (listenedBus != null)
             {
-                Debug.Log("Registering static events for " + this + " on bus '" + listenedBus.Name + "'");
+                Debug.Log("Registering static events for EventBusDebugger on bus '" + listenedBus.Name + "'");
                 listenedBus.RegisterStaticHandlers(this);
             }
 
             ClearHistory();
+            busSelector.SetValueWithoutNotify(which);
         }
 
         #region Event record I/O
@@ -151,6 +155,7 @@ namespace rmMinusR.EventBus.Editor
 
         private ScrollView logBox;
         private Label logHeader;
+        private PopupField<EventBus> busSelector;
         private VisualElement BuildLogBox(out ScrollView logBox)
         {
             Box root = new Box();
@@ -168,7 +173,7 @@ namespace rmMinusR.EventBus.Editor
             footer.style.flexDirection = FlexDirection.Row;
             root.Add(footer);
 
-            PopupField<EventBus> busSelector = new PopupField<EventBus>(EventBus.AllInstances, EventBus.Main, bus => bus.Name, bus => bus.Name);
+            busSelector = new PopupField<EventBus>(EventBus.AllInstances, EventBus.Main, bus => bus.Name, bus => bus.Name);
             busSelector.style.flexGrow = 1;
             footer.Add(busSelector);
             FieldInfo fi = busSelector.GetType().GetField("m_Choices", BindingFlags.NonPublic | BindingFlags.Instance);

@@ -46,7 +46,9 @@ namespace rmMinusR.EventBus
                 }
             }
 
+#if EVENTBUS_VERBOSE_MODE
             UnityEngine.Debug.Log("Scanned "+listener.GetType().Name+". Found "+records.Count+" handlers.");
+#endif
             return records;
         }
         
@@ -65,9 +67,9 @@ namespace rmMinusR.EventBus
             else return null;
         }
 
-        #endregion
+#endregion
         
-        #region Caching
+#region Caching
 
         private static Dictionary<Type, HashSet<Record>> cache = new Dictionary<Type, HashSet<Record>>();
 
@@ -82,7 +84,10 @@ namespace rmMinusR.EventBus
                 //If it doesn't exist yet, default
                 records = StaticScan(listener);
                 cache.Add(listenerType, records);
-            } else UnityEngine.Debug.Log("Using cached static handlers for "+listenerType.Name);
+            }
+#if EVENTBUS_VERBOSE_MODE
+            else UnityEngine.Debug.Log("Using cached static handlers for "+listenerType.Name);
+#endif
 
             return records;
         }
@@ -102,6 +107,6 @@ namespace rmMinusR.EventBus
             public Priority priority;
         }
 
-        #endregion
+#endregion
     }
 }

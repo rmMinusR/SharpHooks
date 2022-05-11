@@ -45,7 +45,7 @@ namespace rmMinusR.EventBus
             isCancelled = false;
         }
 
-        //Used for state comparisons, and in the event system debugger
+        //Used for state comparisons, and in the debugger
         public virtual object Clone() => MemberwiseClone();
     }
 }

@@ -8,7 +8,7 @@ namespace rmMinusR.EventBus
     /// </summary>
     public interface IListener
     {
-
+        public string GetDebugName();
     }
 
     /// <summary>
@@ -22,9 +22,13 @@ namespace rmMinusR.EventBus
 
         protected internal virtual void DoEventRegistration()
         {
+#if EVENTBUS_VERBOSE_MODE
             Debug.Log("Registering static events for "+this+" on bus '"+EventBus.Main.Name+"'");
+#endif
             EventBus.Main.RegisterStaticHandlers(this);
         }
+
+        public virtual string GetDebugName() => name;
     }
 
 }

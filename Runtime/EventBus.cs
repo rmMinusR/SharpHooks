@@ -6,11 +6,16 @@ using System;
 
 namespace rmMinusR.EventBus
 {
-
-    public sealed class EventBus : System.IDisposable
+    /// <summary>
+    /// Handles the dispatching of Events to listeners.
+    /// In most cases EventBus.Main should be used, but multiple EventBuses may be created for cases like unit testing.
+    /// </summary>
+    public sealed class EventBus : IDisposable
     {
+        #region Lifecycle
+
         //Default main instance
-        public static EventBus Main => __mainInstance != null ? __mainInstance : (__mainInstance = new EventBus("Main")); //NOTE: Listeners not guaranteed valid across scene changes
+        public static EventBus Main => __mainInstance != null ? __mainInstance : (__mainInstance = new EventBus("Main")); //NOTE: Listeners may not be guaranteed valid across scene changes
         private static EventBus __mainInstance = null;
 
         //For EventBusDebugger
@@ -31,16 +36,13 @@ namespace rmMinusR.EventBus
             }
         }
 
-        //For debugging
-        public string Name { get => __name; private set => __name = value; }
-        private string __name;
-        public override string ToString() => "EventBus '" + Name + "'";
-
         public EventBus(string name)
         {
             Name = name;
             __AllInstances.Add(new WeakReference<EventBus>(this));
+#if EVENTBUS_VERBOSE_MODE
             Debug.Log("Created new EventBus '"+Name+"'");
+#endif
         }
 
         ~EventBus()
@@ -50,17 +52,24 @@ namespace rmMinusR.EventBus
 
         public void Dispose()
         {
-            if (Main == this) throw new System.InvalidOperationException("Cannot manually destroy bus '"+Name+"'");
+            if (Main == this) throw new InvalidOperationException("Cannot manually destroy bus '"+Name+"'");
             
             //Invalidate state and allow GC cleanup
-            buses = null;
+            bus = null;
 
             __AllInstances.RemoveAll(i => i.TryGetTarget(out EventBus bus) && bus == this);
         }
 
+        #endregion
+
+        //For debugging
+        public string Name { get => __name; private set => __name = value; }
+        private string __name;
+        public override string ToString() => "EventBus '" + Name + "'";
+
         #region Listeners
 
-        private Dictionary<System.Type, SimplePriorityQueue<EventCallback, Priority>> buses = new Dictionary<System.Type, SimplePriorityQueue<EventCallback, Priority>>();
+        private SimplePriorityQueue<EventCallback, Priority> bus = new SimplePriorityQueue<EventCallback, Priority>();
 
         /// <summary>
         /// Registers any functions marked with the [QueryHandler] or
@@ -71,11 +80,10 @@ namespace rmMinusR.EventBus
             foreach (StaticCallbackFactory.Record i in StaticCallbackFactory.GetHandlersOrScan(listener)) //Retrieve all valid methods marked as handlers
             {
                 //Add the listener
-
-                SimplePriorityQueue<EventCallback, Priority> pq;
-                if(!buses.TryGetValue(i.eventType, out pq)) buses.Add(i.eventType, pq = new SimplePriorityQueue<EventCallback, Priority>());
-
-                if(!pq.Any(h => h.owner == listener && h is StaticCallback s && s.target == ((StaticCallback)h).target)) pq.Enqueue(new StaticCallback(i.eventType, listener, i.callInfo), i.priority);
+                if (!bus.Any(h => h.owner == listener && h is StaticCallback s && s.target == ((StaticCallback)h).target))
+                {
+                    bus.Enqueue(new StaticCallback(i.eventType, listener, i.callInfo), i.priority);
+                }
             }
         }
 
@@ -86,15 +94,15 @@ namespace rmMinusR.EventBus
         /// </summary>
         public EventCallback RegisterDynamicHandler<TEvent>(IListener listener, DynamicCallback<TEvent>.Func target, Priority priority) where TEvent : Event
         {
-            SimplePriorityQueue<EventCallback, Priority> pq;
-            if(!buses.TryGetValue(typeof(TEvent), out pq)) buses.Add(typeof(TEvent), pq = new SimplePriorityQueue<EventCallback, Priority>());
-
-            if (!pq.Any(h => h.owner == listener && h is DynamicCallback<TEvent> d && d.target == target))
+            //Add the listener
+            if (!bus.Any(h => h.owner == listener && h is DynamicCallback<TEvent> d && d.target == target))
             {
                 EventCallback callback = new DynamicCallback<TEvent>(listener, target);
-                pq.Enqueue(callback, priority);
+                bus.Enqueue(callback, priority);
                 return callback;
             }
+
+            //Callback has already been registered, return null instead
             return null;
         }
 
@@ -103,28 +111,29 @@ namespace rmMinusR.EventBus
         /// </summary>
         public void UnregisterCallback(EventCallback callback)
         {
-            buses[callback.eventType].Remove(callback);
+            bus.Remove(callback);
         }
 
         /// <summary>
         /// Gets rid of all handlers of the given type owned by the given object. Use sparingly.
         /// </summary>
-        public void UnregisterHandlersOfType(IListener listener, System.Type eventType)
+        public void UnregisterHandlersOfType(IListener listener, Type eventType)
         {
-            SimplePriorityQueue<EventCallback, Priority> bus = buses[eventType];
-            List<EventCallback> toRemove = bus.Where(h => h.owner == listener).ToList();
+            List<EventCallback> toRemove = bus.Where(h => h.owner == listener && h.eventType.IsAssignableFrom(eventType)).ToList();
             foreach (EventCallback h in toRemove) bus.Remove(h);
         }
 
         /// <summary>
         /// Unregisters a listener from ALL events.
-        /// 
+        /// </summary>
+        /// <details>
         /// Should be used when an object goes out of scope, especially for MonoBehaviours which
         /// may become invalid and throw errors if access is attempted after disposed.
-        /// </summary>
+        /// </details>
         public void UnregisterAllHandlers(IListener listener)
         {
-            foreach (System.Type eventType in buses.Keys) UnregisterHandlersOfType(listener, eventType);
+            List<EventCallback> toRemove = bus.Where(h => h.owner == listener).ToList();
+            foreach (EventCallback h in toRemove) bus.Remove(h);
         }
 
         #endregion
@@ -136,28 +145,25 @@ namespace rmMinusR.EventBus
         /// </summary>
         public T DispatchImmediately<T>(T @event) where T : Event
         {
-            if(@event.HasBeenDispatched) throw new System.InvalidOperationException("Event has already been dispatched!");
+            if(@event.HasBeenDispatched) throw new InvalidOperationException("Event has already been dispatched!");
 
             @event.HasBeenDispatched = true;
 
-            foreach (KeyValuePair<System.Type, SimplePriorityQueue<EventCallback, Priority>> pair in buses)
+            foreach (EventCallback i in bus)
             {
-                if (pair.Key.IsAssignableFrom(@event.GetType()))
+                if (i.eventType.IsAssignableFrom(@event.GetType())) //Slow?
                 {
-                    foreach (EventCallback i in pair.Value)
+                    try
                     {
-                        try
-                        {
-                            i.Dispatch(@event);
-                        }
-                        catch (System.Exception exc)
-                        {
-                            Debug.LogException(exc);
-                        }
+                        i.Dispatch(@event);
+                    }
+                    catch (Exception exc)
+                    {
+                        Debug.LogException(exc);
                     }
                 }
             }
-
+            
             return @event;
         }
 
