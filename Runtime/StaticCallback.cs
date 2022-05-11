@@ -3,61 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace EventSystem
+namespace rmMinusR.EventBus
 {
-    /// <summary>
-    /// Static event handler marker
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-    public sealed class EventHandlerAttribute : Attribute
+    internal sealed class StaticCallback : EventCallback
     {
-        public Priority priority;
-
-        public EventHandlerAttribute(Priority priority)
+        internal StaticCallback(Type eventType, IListener owner, MethodInfo target) : base(eventType, owner)
         {
-            this.priority = priority;
+            this.target = target;
         }
+
+        public readonly MethodInfo target;
+
+        internal override void Dispatch(Event e) => target.Invoke(owner, new object[] { e });
     }
 
-    internal static class StaticHandlerCache
+    internal static class StaticCallbackFactory
     {
-        #region Caching
-
-        private static Dictionary<Type, HashSet<Record>> cache = new Dictionary<Type, HashSet<Record>>();
-
-        internal static HashSet<Record> GetHandlersOrScan(IListener listener)
-        {
-            Type listenerType = listener.GetType();
-            
-            //Try to fetch existing, if it exists
-            HashSet<Record> records = null;
-            if(!cache.TryGetValue(listenerType, out records))
-            {
-                //If it doesn't exist yet, default
-                records = StaticScan(listener);
-                cache.Add(listenerType, records);
-            } else UnityEngine.Debug.Log("Using cached static handlers for "+listenerType.Name);
-
-            return records;
-        }
-
-        internal static IEnumerable<Record> GetHandlersOrScan(IListener listener, Event @event)
-        {
-            HashSet<Record> records = GetHandlersOrScan(listener);
-
-            Type eventType = @event.GetType();
-            return records.Where(r => r.eventType.IsAssignableFrom(@eventType));
-        }
-
-        public struct Record
-        {
-            public Type eventType;
-            public MethodInfo callInfo;
-            public Priority priority;
-        }
-
-        #endregion
-
         #region Scanning
 
         private static HashSet<Record> StaticScan(IListener listener)
@@ -102,6 +63,43 @@ namespace EventSystem
             MethodInfo parent = method.GetBaseDefinition();
             if (parent != null && parent != method) return GetAttributeFromMethodOrParents<T>(parent);
             else return null;
+        }
+
+        #endregion
+        
+        #region Caching
+
+        private static Dictionary<Type, HashSet<Record>> cache = new Dictionary<Type, HashSet<Record>>();
+
+        internal static HashSet<Record> GetHandlersOrScan(IListener listener)
+        {
+            Type listenerType = listener.GetType();
+            
+            //Try to fetch existing, if it exists
+            HashSet<Record> records = null;
+            if(!cache.TryGetValue(listenerType, out records))
+            {
+                //If it doesn't exist yet, default
+                records = StaticScan(listener);
+                cache.Add(listenerType, records);
+            } else UnityEngine.Debug.Log("Using cached static handlers for "+listenerType.Name);
+
+            return records;
+        }
+
+        internal static IEnumerable<Record> GetHandlersOrScan(IListener listener, Event @event)
+        {
+            HashSet<Record> records = GetHandlersOrScan(listener);
+
+            Type eventType = @event.GetType();
+            return records.Where(r => r.eventType.IsAssignableFrom(@eventType));
+        }
+
+        public struct Record
+        {
+            public Type eventType;
+            public MethodInfo callInfo;
+            public Priority priority;
         }
 
         #endregion

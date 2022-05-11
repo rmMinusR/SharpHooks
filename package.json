@@ -1,7 +1,7 @@
 {
-	"name": "com.rmminusr.eventsystem",
+	"name": "com.rmminusr.eventbus",
 	"version": "0.9.0-beta",
-	"documentationUrl": "https://rmMinusR.com/docs/eventsystem/v0.9.0-beta/",
+	"documentationUrl": "https://rmMinusR.com/docs/eventbus/v0.9.0-beta/",
 	"license": "MIT License",
 	
 	"author": {
@@ -9,7 +9,7 @@
 		"url": "https://rmMinusR.com/"
 	},
 	
-	"displayName": "Event Messaging",
-	"description": "Provides support for passing custom messages between objects, making event-driven architecture easy and safe. Minimal setup, similar in syntax to the builtin OnPointerClick or OnCollisionEnter.",
+	"displayName": "Event Bus",
+	"description": "Provides support for indirectly passing custom messages between objects, making event-driven architecture easy and safe. Minimal setup, similar in syntax to the builtin OnPointerClick or OnCollisionEnter.",
 	"hideInEditor": false
 }

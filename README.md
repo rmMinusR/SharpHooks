@@ -1,6 +1,6 @@
-# Event Messaging System for Unity
+# Event Bus System for Unity
 
-Provides support for passing custom messages between objects, making event-driven architecture easy and safe. Minimal setup, similar in syntax to the builtin `OnPointerClick` or `OnCollisionEnter`.
+Provides support for indirectly passing custom messages between objects, making event-driven architecture easy, safe, and decoupled. Minimal setup, similar in syntax to the builtin `OnPointerClick` or `OnCollisionEnter`.
 
 # Getting Started
 

@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace EventSystem
+namespace rmMinusR.EventBus
 {
     /// <summary>
     /// Empty marker for objects that interact with Queries and Messages
@@ -18,12 +18,12 @@ namespace EventSystem
     {
         protected virtual void OnEnable() => DoEventRegistration();
 
-        protected virtual void OnDisable() => EventAPI.UnregisterAllHandlers(this);
+        protected virtual void OnDisable() => EventBus.Main.UnregisterAllHandlers(this);
 
         protected internal virtual void DoEventRegistration()
         {
-            Debug.Log("Registering static events for "+this);
-            EventAPI.RegisterStaticHandlers(this);
+            Debug.Log("Registering static events for "+this+" on bus '"+EventBus.Main.Name+"'");
+            EventBus.Main.RegisterStaticHandlers(this);
         }
     }
 

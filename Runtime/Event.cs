@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace EventSystem
+namespace rmMinusR.EventBus
 {
     /// <summary>
     /// Highest priority will execute first and Lowest will execute last.
@@ -29,7 +29,7 @@ namespace EventSystem
     /// Note that an event will reach all listeners, whether it was cancelled or not.
     /// </summary>
     [Serializable]
-    public abstract class Event
+    public abstract class Event : ICloneable
     {
         public bool isCancelled;
         [SerializeField] private bool _hasBeenDispatched;
@@ -44,5 +44,8 @@ namespace EventSystem
             HasBeenDispatched = false;
             isCancelled = false;
         }
+
+        //Used for state comparisons, and in the event system debugger
+        public virtual object Clone() => MemberwiseClone();
     }
 }

@@ -5,20 +5,21 @@ using UnityEngine.UIElements;
 using System.Collections.Generic;
 using System;
 
-namespace EventSystem.Editor
+namespace rmMinusR.EventBus.Editor
 {
 
-    public class EventSystemDebugger : EditorWindow, IListener
+    public class EventBusDebugger : EditorWindow, IListener
     {
         #region Window setup and status
 
-        [MenuItem("Window/Analysis/Event Debugger")]
+        [MenuItem("Window/Analysis/EventBus Debugger")]
         private static void Init()
         {
-            GetWindow(typeof(EventSystemDebugger)).Show();
+            EventBusDebugger window = GetWindow<EventBusDebugger>();
+            window.Show();
         }
 
-        static EventSystemDebugger ActiveInstance;
+        static EventBusDebugger ActiveInstance;
 
         public static bool IsOpen => ActiveInstance != null;
 
@@ -51,13 +52,37 @@ namespace EventSystem.Editor
 
             //Setup instance
             ActiveInstance = this;
-            DoEventRegistration();
+
+            //Setup listening
+            ListenTo(EventBus.Main);
+
+            titleContent = new GUIContent("EventBus Debugger");
         }
 
         private void OnDisable()
         {
-            EventAPI.UnregisterAllHandlers(this);
+            EventBus.Main.UnregisterAllHandlers(this);
             ActiveInstance = null;
+        }
+
+        private EventBus listenedBus = null;
+        public void ListenTo(EventBus which)
+        {
+            //Stop listening
+            if (listenedBus != null)
+            {
+                Debug.Log("Unregistering static events for " + this + " on bus '"+listenedBus.Name+"'");
+                listenedBus.UnregisterAllHandlers(this);
+            }
+
+            listenedBus = which;
+
+            //Start listening
+            if (listenedBus != null)
+            {
+                Debug.Log("Registering static events for " + this + " on bus '" + listenedBus.Name + "'");
+                listenedBus.RegisterStaticHandlers(this);
+            }
         }
 
         #region Event record I/O
@@ -87,30 +112,18 @@ namespace EventSystem.Editor
             {
                 return base.GetHashCode() ^ timestamp.GetHashCode() ^ @event.GetHashCode() ^ listeners.GetHashCode();
             }
-
-            public class CompareByTime : IComparer<EventFireRecord> //Good for binary searching for a specific known event
-            {
-                public int Compare(EventFireRecord x, EventFireRecord y)
-                {
-                    return x.timestamp.CompareTo(y.timestamp);
-                }
-            }
         }
 
-        [SerializeField] private List<EventFireRecord> history = new List<EventFireRecord>();
+        [SerializeField] private List<LogEntryDisplay> logBoxEntries = new List<LogEntryDisplay>();
 
         private void ClearHistory()
         {
-            history.Clear();
+            logBoxEntries.Clear();
+            if(logBox != null) logBox.Clear();
             selectedLogEntry = null;
             if (eventDataInspector != null) eventDataInspector.visible = false;
             if (stacktraceLabel != null) stacktraceLabel.text = "";
-        }
-
-        protected internal virtual void DoEventRegistration()
-        {
-            Debug.Log("Registering static events for " + this);
-            EventAPI.RegisterStaticHandlers(this);
+            if (logHeader != null) logHeader.text = "Log - 0 entries";
         }
 
         [EventHandler(Priority.Final)]
@@ -124,7 +137,11 @@ namespace EventSystem.Editor
                 stacktrace = StackTraceUtility.ExtractStackTrace()
             };
 
-            history.Add(record);
+            LogEntryDisplay display = new LogEntryDisplay(record, logBoxEntries.Count, this);
+            logBoxEntries.Add(display);
+            logBox.Add(display);
+
+            logHeader.text = "Log - " + logBoxEntries.Count + " entries";
         }
 
         #endregion
@@ -152,26 +169,28 @@ namespace EventSystem.Editor
             return root;
         }
 
+        [Serializable]
         private sealed class LogEntryDisplay : VisualElement, IEventHandler
         {
-            private EventSystemDebugger owner;
-            internal EventFireRecord record;
+            private EventBusDebugger owner;
+            [SerializeField] internal EventFireRecord record;
             private Label timestampLabel;
             private Label eventTypeLabel;
+            private int id;
 
-            public LogEntryDisplay(EventFireRecord record, EventSystemDebugger owner)
+            public LogEntryDisplay(EventFireRecord record, int id, EventBusDebugger owner)
             {
                 this.owner = owner;
                 style.alignSelf = Align.Stretch;
                 style.flexDirection = FlexDirection.Row;
                 style.paddingTop = style.paddingBottom = 2.5f;
 
-                //RegisterCallback<ClickEvent>(e => EventSystemDebugger.ActiveInstance.SelectLogEntry(this));
-                RegisterCallback<ClickEvent>(e => owner.SelectLogEntry(this));
+                this.id = id;
+                RegisterCallback<ClickEvent>(e => owner.SelectLogEntry(id));
                 focusable = true;
 
                 Add(timestampLabel = new Label("[HH:MM:SS]"));
-                timestampLabel.style.width = 80;
+                timestampLabel.style.width = 60;
 
                 Add(eventTypeLabel = new Label("MyEvent"));
 
@@ -196,42 +215,20 @@ namespace EventSystem.Editor
                 }
             }
 
-            internal EventFireRecord GetDisplayedRecord() => record;
+            private void UpdateTimestampLabel() => timestampLabel.text = record.timestamp.ToLocalTime().ToString("HH:mm:ss");
 
-            private void UpdateTimestampLabel()
-            {
-                timestampLabel.text = record.timestamp.ToLocalTime().ToString("HH:mm:ss");
-            }
-
-            private void UpdateEventTypeLabel()
-            {
-                eventTypeLabel.text = record.@event?.GetType()?.Name ?? "null";
-            }
+            private void UpdateEventTypeLabel() => eventTypeLabel.text = record.@event?.GetType()?.Name ?? "null";
         }
 
-        private void Update()
-        {
-            //Ensure same child count
-            while (logBox.childCount > history.Count) logBox.RemoveAt(history.Count); //Remove excess
-            while (logBox.childCount < history.Count) logBox.Add(new LogEntryDisplay(default, this)); //Add to fill
-
-            //Write displayed records
-            int index = 0;
-            foreach(LogEntryDisplay i in logBox.Children())
-            {
-                i.SetDisplayedRecord(history[index]);
-                ++index;
-            }
-
-            logHeader.text = "Log - " + history.Count + " entries";
-        }
-
-        private LogEntryDisplay selectedLogEntry = null;
-        private void SelectLogEntry(LogEntryDisplay which)
+        private int? selectedLogEntryID;
+        [SerializeField] private LogEntryDisplay selectedLogEntry = null;
+        private void SelectLogEntry(int whichID)
         {
             //Update selection visual state
-            selectedLogEntry = which;
-            foreach (LogEntryDisplay i in logBox.Children()) i.SetSelected(i == selectedLogEntry);
+            if (selectedLogEntry != null) selectedLogEntry.SetSelected(false);
+            selectedLogEntryID = whichID;
+            selectedLogEntry = logBoxEntries[whichID];
+            selectedLogEntry.SetSelected(true);
 
             //Update event data panel
             if (serializedRepr != null) serializedRepr.Update();
@@ -241,13 +238,10 @@ namespace EventSystem.Editor
 
             if (selectedLogEntry != null)
             {
-                //FIXME this is a roundabout solution with MAJOR performance cost when working with large logs
-                int selectedIndex = history.BinarySearch(which.GetDisplayedRecord(), new EventFireRecord.CompareByTime());
-                SerializedProperty prop = serializedRepr.FindProperty("history").GetArrayElementAtIndex(selectedIndex).FindPropertyRelative("event");
+                SerializedProperty prop = serializedRepr.FindProperty("selectedLogEntry").FindPropertyRelative("record").FindPropertyRelative("event");
                 eventDataInspector.BindProperty(prop);
 
-                eventDataInspector.style.flexGrow = 1;
-
+                //Try to open foldout, if it exists
                 Foldout foldout = eventDataInspector.ElementAt(0) as Foldout;
                 if (foldout != null) foldout.value = true;
             }
