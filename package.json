@@ -1,7 +1,6 @@
 {
 	"name": "com.rmminusr.eventbus",
-	"version": "0.9.0-beta",
-	"documentationUrl": "https://rmMinusR.com/docs/eventbus/v0.9.0-beta/",
+	"version": "1.0.0-beta",
 	"license": "MIT License",
 	
 	"author": {
