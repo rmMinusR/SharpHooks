@@ -131,7 +131,7 @@ namespace rmMinusR.EventBus.Editor
             if (logHeader != null) logHeader.text = "Log - 0 entries";
         }
 
-        [EventHandler(Priority.Final)]
+        [EventHandler(priority = Priority.Final)]
         private void RecordEvent(Event e)
         {
             EventFireRecord record = new EventFireRecord

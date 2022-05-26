@@ -11,11 +11,6 @@ namespace rmMinusR.EventBus
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     public sealed class EventHandlerAttribute : Attribute
     {
-        public Priority priority;
-
-        public EventHandlerAttribute(Priority priority)
-        {
-            this.priority = priority;
-        }
+        public Priority priority = Priority.Normal;
     }
 }
