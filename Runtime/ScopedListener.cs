@@ -1,16 +1,8 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace rmMinusR.EventBus
 {
-    /// <summary>
-    /// Empty marker for objects that interact with Queries and Messages
-    /// </summary>
-    public interface IListener
-    {
-        public string GetDebugName();
-    }
-
     /// <summary>
     /// MonoBehaviour that automatically manages scope as a Listener, registering static handlers on enable and unregistering ALL handlers on disable.
     /// </summary>
