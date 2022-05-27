@@ -24,10 +24,7 @@ public class LightSwitch : ScopedListener
 	[EventHandler]
 	void HandleLightsToggle(InteractEvent e) //This function can be named anything
 	{
-		if(e.interactedObject == this) {
-			connectedLight.enabled = !connectedLight.enabled;
-			e.Consume();
-		}
+		if(e.interactedObject == this) connectedLight.enabled = !connectedLight.enabled;
 	}
 }
 
