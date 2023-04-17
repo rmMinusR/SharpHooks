@@ -5,12 +5,19 @@ using UnityEngine.UIElements;
 using System.Collections.Generic;
 using System;
 using System.Reflection;
+using System.Linq;
 
 namespace rmMinusR.EventBus.Editor
 {
 
     public class EventBusDebugger : EditorWindow, IListener
     {
+#if EVENTBUS_VERBOSE_MODE
+        private const bool logShortStackTraces = false;
+#else
+        private const bool logShortStackTraces = true;
+#endif
+
         #region Window setup and status
 
         [MenuItem("Window/Analysis/EventBus Debugger")]
@@ -24,8 +31,6 @@ namespace rmMinusR.EventBus.Editor
         static EventBusDebugger ActiveInstance;
 
         public static bool IsOpen => ActiveInstance != null;
-
-        #endregion
 
         private void OnEnable()
         {
@@ -65,6 +70,8 @@ namespace rmMinusR.EventBus.Editor
             ActiveInstance = null;
         }
 
+        #endregion
+        
         public string GetDebugName() => "EventBus Debugger ("+listenedBus+")";
 
         private EventBus listenedBus = null;
@@ -142,6 +149,13 @@ namespace rmMinusR.EventBus.Editor
                 stacktrace = StackTraceUtility.ExtractStackTrace()
             };
 
+            if (logShortStackTraces)
+            {
+                int startIndex = record.stacktrace.IndexOf("EventBus:Dispatch"); //Find string
+                startIndex = record.stacktrace.IndexOf('\n', startIndex); //Find next newline
+                record.stacktrace = record.stacktrace.Substring(startIndex + 1); //Ignore before
+            }
+
             LogEntryDisplay display = new LogEntryDisplay(record, logBoxEntries.Count, this);
             logBoxEntries.Add(display);
             logBox.Add(display);
@@ -149,9 +163,9 @@ namespace rmMinusR.EventBus.Editor
             logHeader.text = "Log - " + logBoxEntries.Count + " entries";
         }
 
-        #endregion
+#endregion
 
-        #region Log panel UI
+#region Log panel UI
 
         private ScrollView logBox;
         private Label logHeader;
@@ -277,9 +291,9 @@ namespace rmMinusR.EventBus.Editor
             stacktraceLabel.text = selectedLogEntry != null ? selectedLogEntry.record.stacktrace : "";
         }
 
-        #endregion
+#endregion
 
-        #region Event data panel UI
+#region Event data panel UI
 
         private VisualElement eventDataBox;
 
@@ -301,7 +315,7 @@ namespace rmMinusR.EventBus.Editor
             return root;
         }
 
-        #endregion
+#endregion
 
         private VisualElement BuildListenersBox()
         {
@@ -330,7 +344,7 @@ namespace rmMinusR.EventBus.Editor
             return root;
         }
 
-        #region Misc helper UI functions
+#region Misc helper UI functions
 
         private Label BuildHeader(string text)
         {
@@ -351,7 +365,7 @@ namespace rmMinusR.EventBus.Editor
             return divider;
         }
 
-        #endregion
+#endregion
     }
 
 }
