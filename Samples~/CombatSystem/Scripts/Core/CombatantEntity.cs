@@ -6,63 +6,61 @@ using System.Collections.Generic;
 namespace Combat
 {
     /// <summary>
-    /// Implements most basic functions needed to participate in combat
+    /// Implements most basic functions needed to participate in combat. Most of the time you will be using this.
     /// </summary>
     public class CombatantEntity : ScopedListener, ICombatTarget, ICombatAffector
     {
+        #region Health
+
         [SerializeField] protected float health;
         [SerializeField] protected float maxHealth;
         [SerializeField] protected bool isAlive = true;
 
+
         public float GetHealth() => health;
-        protected void SetHealth(float newHealth) => health = Mathf.Clamp(newHealth, 0, GetMaxHealth()); //Note: Does not trip events
         public float GetMaxHealth() => maxHealth;
 
         public bool IsAlive() => isAlive;
 
-        /// <summary>
-        /// Internal method that actually handles damage application. Should ONLY be called after an event has passed through Combat.API
-        /// </summary>
-        void ICombatTarget.DirectApplyDamage(float damage, ICombatAffector source, ICombatEffect damagingEffect)
-        {
-            //Decrease health by (post-mitigation) damage
-            health -= damage;
+        #endregion
 
-            //Try to die if our health is 0 or negative
-            if(health <= 0) CombatAPI.Kill(this, source, damagingEffect);
+        #region Damage and healing
+
+        //Use default implementations
+        public void Damage(ICombatEffect how, IEnumerable<Damage> effects) => this.DefaultDamage(how, effects);
+        public void Heal(ICombatEffect how, float heal) => this.DefaultHeal(how, heal);
+        public void Kill(ICombatEffect how) => this.DefaultKill(how);
+
+        void ICombatTarget.DirectApplyDamage(float damage, ICombatEffect damagingEffect)
+        {
+            health -= damage; //Decrease health by (post-mitigation) damage
+            if (health <= 0) this.Kill(damagingEffect); //Try to die if we're out of health
         }
 
-        /// <summary>
-        /// Internal method that actually handles damage application. Should ONLY be called after an event has passed through Combat.API
-        /// </summary>
-        void ICombatTarget.DirectApplyHeal(float heal, ICombatAffector source, ICombatEffect damagingEffect)
+        void ICombatTarget.DirectApplyHeal(float heal, ICombatEffect healingEffect)
         {
-            //Increase health by (post-mitigation) healing
-            health += heal;
-
-            //Prevent overhealing
-            if (health > maxHealth) health = maxHealth;
+            health += heal; //Increase health by (post-mitigation) healing
+            if (health > maxHealth) health = maxHealth; //Prevent overhealing
         }
 
-        /// <summary>
-        /// Internal method that actually applies death and handles cleanup. Should ONLY be called after an event has passed through Combat.API
-        /// </summary>
-        void ICombatTarget.DirectKill(ICombatAffector source, ICombatEffect damagingEffect)
+        void ICombatTarget.DirectKill(ICombatEffect damagingEffect)
         {
-            //Mark as dead
-            isAlive = false;
-
-            OnDeath();
+            isAlive = false; //Mark as dead
+            HandleDeath();
         }
 
-        //Override this if you want custom death behavior like animations
-        protected virtual void OnDeath() => Destroy(gameObject);
+        // Override this if you want stuff like death animations
+        protected virtual void HandleDeath() => Destroy(gameObject);
+
+        #endregion
+
+        #region Determining friend and foe
 
         [Header("Alignment")]
-        [SerializeField] protected Group alignment;
-        public Group GetAlignment() => alignment;
-        //[SerializeField] protected Group allyMask;
-        [SerializeField] protected Group hostileMask;
+        [SerializeField] protected Faction faction;
+        public Faction GetFaction() => faction;
+        //[SerializeField] protected Faction allyMask;
+        [SerializeField] protected Faction hostileMask;
 
         [Serializable]
         protected struct SentimentOverride
@@ -74,10 +72,12 @@ namespace Combat
 
         public virtual Sentiment GetSentimentTowards(ICombatTarget other)
         {
-            if ((other.GetAlignment() & hostileMask) != 0) return Sentiment.Hostile;
-            foreach(SentimentOverride i in overrides) if(i.combatant == (UnityEngine.Object)other) return i.sentiment;
+            if (hostileMask.HasFlag(other.GetFaction())) return Sentiment.Hostile;
+            foreach(SentimentOverride i in overrides) if (i.combatant == (UnityEngine.Object)other) return i.sentiment;
             return Sentiment.Passive;
         }
+
+        #endregion
     }
 
 }

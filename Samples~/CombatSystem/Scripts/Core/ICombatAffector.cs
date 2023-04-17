@@ -7,11 +7,14 @@ namespace Combat
     /// </summary>
     public interface ICombatAffector
     {
+        /// <summary>
+        /// Is the given target friend or foe?
+        /// </summary>
         public Sentiment GetSentimentTowards(ICombatTarget other);
     }
 
     [Flags]
-    public enum Group
+    public enum Faction
     {
         PlayerCharacter   = 1 << 0,
         AttackerCharacter = 1 << 8

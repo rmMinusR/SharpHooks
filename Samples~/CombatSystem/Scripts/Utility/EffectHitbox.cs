@@ -44,6 +44,6 @@ namespace Combat
             }
         }
 
-        public void Apply(ICombatTarget target) => CombatAPI.Hit(GetSource(), target, this, effects);
+        public void Apply(ICombatTarget target) => target.Damage(this, effects);
     }
 }

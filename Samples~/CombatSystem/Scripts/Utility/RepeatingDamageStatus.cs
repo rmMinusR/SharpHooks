@@ -15,14 +15,14 @@ public sealed class RepeatingDamageStatus : MonoBehaviour, ICombatEffect
     private ICombatAffector __source;
     public void SetSource(ICombatAffector source) => __source = source;
     public ICombatAffector GetSource() => __source;
-    public void Apply(ICombatTarget target) => CombatAPI.Hit(GetSource(), target, this, effectsPerTick);
+    public void Apply(ICombatTarget target) => target.Damage(this, effectsPerTick);
 
     private void Update()
     {
         timeToNextTick -= Time.deltaTime;
         if (timeToNextTick <= 0)
         {
-            CombatAPI.Hit(GetSource(), target, this, effectsPerTick);
+            Apply(target);
             timeToNextTick = 1 / ticksPerSecond;
         }
 
