@@ -2,8 +2,6 @@
 
 namespace Combat
 {
-    //TODO fix coupling: requires on sequential dispatch. Remedied somewhat by API.
-
     [Serializable]
     public class HealEvent : CombatEvent
     {

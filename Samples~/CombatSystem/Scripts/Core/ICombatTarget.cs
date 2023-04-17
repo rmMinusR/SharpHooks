@@ -39,17 +39,20 @@ namespace Combat
         /// <summary>
         /// Internal method that actually handles damage application. Should ONLY be called after an event has passed through Combat.API
         /// </summary>
-        internal void DirectApplyDamage(float damage, ICombatEffect damagingEffect);
+        [EventHandler(priority = Priority.Final)]
+        internal void DirectApplyDamage(HitEvent @event);
 
         /// <summary>
         /// Internal method that actually handles heal application. Should ONLY be called after an event has passed through Combat.API
         /// </summary>
-        internal void DirectApplyHeal(float heal, ICombatEffect healingEffect);
+        [EventHandler(priority = Priority.Final)]
+        internal void DirectApplyHeal(HealEvent @event);
 
         /// <summary>
         /// Internal method that actually handles death. Should ONLY be called after an event has passed through Combat.API
         /// </summary>
-        internal void DirectKill(ICombatEffect damagingEffect);
+        [EventHandler(priority = Priority.Final)]
+        internal void DirectKill(DeathEvent @event);
     }
 
 
@@ -66,11 +69,7 @@ namespace Combat
         public static void DefaultDamage(this ICombatTarget to, ICombatEffect how, IEnumerable<Damage> effects)
         {
             HitEvent ev = new HitEvent(how.GetSource(), to, how, effects);
-            EventBus.Main.DispatchImmediately(ev,
-                onComplete: ev => {
-                    if (!ev.isCancelled) to.DirectApplyDamage(ev.effects.Sum(e => e.damageAmount), how);
-                }
-            );
+            EventBus.Main.DispatchImmediately(ev);
         }
 
         /// <summary>
@@ -81,11 +80,7 @@ namespace Combat
         public static void DefaultHeal(this ICombatTarget to, ICombatEffect how, float heal)
         {
             HealEvent ev = new HealEvent(how.GetSource(), to, how, heal);
-            EventBus.Main.DispatchImmediately(ev,
-                onComplete: ev => {
-                    if (!ev.isCancelled) to.DirectApplyHeal(ev.heal, how);
-                }
-            );
+            EventBus.Main.DispatchImmediately(ev);
         }
 
         /// <summary>
@@ -94,12 +89,8 @@ namespace Combat
         /// <param name="how">What killed me?</param>
         public static void DefaultKill(this ICombatTarget target, ICombatEffect how)
         {
-            DeathEvent message = new DeathEvent(how.GetSource(), target, how);
-            EventBus.Main.DispatchImmediately(message,
-                onComplete: ev => {
-                    if (!message.isCancelled) target.DirectKill(how);
-                }
-            );
+            DeathEvent ev = new DeathEvent(how.GetSource(), target, how);
+            EventBus.Main.DispatchImmediately(ev);
         }
     }
 

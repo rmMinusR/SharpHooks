@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Combat
 {
@@ -20,5 +21,7 @@ namespace Combat
             this.effects = new List<Damage>(effects);
             this.originalEffects = new List<Damage>(this.effects);
         }
+
+        public float GetTotalDamage() => effects.Sum(e => e.damageAmount);
     }
 }

@@ -14,7 +14,10 @@ namespace rmMinusR.EventBus
         Low     = 400,
         Lowest  = 500,
 
-        Final = 1000
+        /// <summary>
+        /// Used to indicate applying in-world effects after an event has finished processing. No further changes may be made at this stage.
+        /// </summary>
+        Final = int.MaxValue
     }
 
     /// <summary>

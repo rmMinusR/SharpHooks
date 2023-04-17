@@ -31,19 +31,19 @@ namespace Combat
         public void Heal(ICombatEffect how, float heal) => this.DefaultHeal(how, heal);
         public void Kill(ICombatEffect how) => this.DefaultKill(how);
 
-        void ICombatTarget.DirectApplyDamage(float damage, ICombatEffect damagingEffect)
+        void ICombatTarget.DirectApplyDamage(HitEvent @event)
         {
-            health -= damage; //Decrease health by (post-mitigation) damage
-            if (health <= 0) this.Kill(damagingEffect); //Try to die if we're out of health
+            health -= @event.GetTotalDamage(); //Decrease health by (post-mitigation) damage
+            if (health <= 0) this.Kill(@event.damagingEffect); //Try to die if we're out of health
         }
 
-        void ICombatTarget.DirectApplyHeal(float heal, ICombatEffect healingEffect)
+        void ICombatTarget.DirectApplyHeal(HealEvent @event)
         {
-            health += heal; //Increase health by (post-mitigation) healing
+            health += @event.heal; //Increase health by (post-mitigation) healing
             if (health > maxHealth) health = maxHealth; //Prevent overhealing
         }
 
-        void ICombatTarget.DirectKill(ICombatEffect damagingEffect)
+        void ICombatTarget.DirectKill(DeathEvent @event)
         {
             isAlive = false; //Mark as dead
             HandleDeath();
