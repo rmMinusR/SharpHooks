@@ -143,7 +143,7 @@ namespace rmMinusR.EventBus
         /// <summary>
         /// Sends an event to all registered listeners.
         /// </summary>
-        public T DispatchImmediately<T>(T @event) where T : Event
+        public void DispatchImmediately<T>(T @event, Action<T> onComplete = null) where T : Event
         {
             if(@event.HasBeenDispatched) throw new InvalidOperationException("Event has already been dispatched!");
 
@@ -163,8 +163,8 @@ namespace rmMinusR.EventBus
                     }
                 }
             }
-            
-            return @event;
+
+            onComplete?.Invoke(@event);
         }
 
         #endregion

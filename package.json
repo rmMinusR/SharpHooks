@@ -10,5 +10,13 @@
 	
 	"displayName": "Event Bus",
 	"description": "Provides support for indirectly passing custom messages between objects, making event-driven architecture easy and safe. Minimal setup, similar in syntax to the builtin OnPointerClick or OnCollisionEnter.",
-	"hideInEditor": false
+	"hideInEditor": false,
+	
+	"samples": [
+		{
+		  "displayName": "[Addon] Combat System",
+		  "description": "Extends events to combat",
+		  "path": "Samples/CombatSystem"
+		}
+	]
 }
